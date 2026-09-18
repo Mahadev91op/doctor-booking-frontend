@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import { registerUser } from "../../services/authService";
+import { useAuth } from "../../context/AuthContext";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "../../components/ui/card";
@@ -11,6 +12,7 @@ import Logo from "../../components/common/Logo";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     mobile: "",
@@ -29,24 +31,55 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match");
+    const trimmedName = formData.name.trim();
+    const trimmedMobile = formData.mobile.trim();
+    const trimmedEmail = formData.email.trim().toLowerCase();
+
+    if (!trimmedName || !trimmedMobile || !trimmedEmail || !formData.password) {
+      toast.error("All fields are required");
       return;
     }
+
+    if (!/^\d{10}$/.test(trimmedMobile)) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
     if (formData.password.length < 8) {
       toast.error("Password must be at least 8 characters long");
       return;
     }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
     try {
       setLoading(true);
-      await registerUser({
-        name: formData.name,
-        mobile: formData.mobile,
-        email: formData.email,
+      const res = await registerUser({
+        name: trimmedName,
+        mobile: trimmedMobile,
+        email: trimmedEmail,
         password: formData.password,
       });
-      toast.success("Registration Successful");
-      navigate("/login");
+
+      // Handle JWT session & redirect
+      if (res.token && res.user) {
+        localStorage.setItem("token", res.token);
+        localStorage.setItem("user", JSON.stringify(res.user));
+        setUser(res.user);
+        toast.success("Account created successfully! Welcome to SehatRaj.");
+        navigate("/");
+      } else {
+        toast.success("Registration Successful! Please log in.");
+        navigate("/login");
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration Failed");
     } finally {
