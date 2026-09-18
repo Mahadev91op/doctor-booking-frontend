@@ -12,6 +12,8 @@ import toast from "react-hot-toast";
 import {
   getHomeVisitSlots,
 } from "../../services/doctorService";
+import Navbar from "../../components/common/Navbar";
+import Footer from "../../components/common/Footer";
 
 const DoctorProfile = () => {
   const { id } = useParams();
@@ -359,148 +361,127 @@ useEffect(() => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-4">
-      <div className="bg-white rounded-3xl shadow-xl p-10">
-        <div className="flex items-center gap-8">
-          <div className="w-28 h-28 rounded-full bg-blue-100 flex items-center justify-center text-5xl font-bold text-blue-700">
-            {doctor.name.charAt(0)}
+    <div className="flex flex-col min-h-screen bg-slate-50">
+      <Navbar />
+
+      <main className="flex-1 max-w-5xl w-full mx-auto py-8 sm:py-12 px-4 sm:px-6">
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-border p-6 sm:p-10">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-6 sm:gap-8">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl sm:rounded-full bg-primary/10 text-primary flex items-center justify-center text-4xl sm:text-5xl font-bold shadow-xs shrink-0">
+              {doctor.name.charAt(0)}
+            </div>
+
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">{doctor.name}</h1>
+              <p className="text-primary font-semibold text-base sm:text-lg mt-1">
+                {doctor.specialization}
+              </p>
+              <p className="text-muted-foreground text-sm mt-1">{doctor.qualification}</p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-4xl font-bold">{doctor.name}</h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mt-8 sm:mt-10 pt-6 border-t border-border/60">
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <h2 className="font-bold text-base sm:text-lg text-foreground mb-3">Doctor Information</h2>
+              <p><strong className="text-foreground">Experience:</strong> {doctor.experience} Years</p>
+              <p><strong className="text-foreground">Clinic:</strong> {doctor.clinicName}</p>
+              <p><strong className="text-foreground">Address:</strong> {doctor.clinicAddress}</p>
+              <p><strong className="text-foreground">Working Days:</strong> {doctor.workingDays.join(", ")}</p>
+              <p><strong className="text-foreground">Clinic Time:</strong> {doctor.clinicStartTime} - {doctor.clinicEndTime}</p>
+              <p><strong className="text-foreground">Lunch:</strong> {doctor.lunchStart} - {doctor.lunchEnd}</p>
+            </div>
 
-            <p className="text-blue-600 text-xl mt-2">
-              {doctor.specialization}
-            </p>
-
-            <p className="text-gray-600 mt-2">{doctor.qualification}</p>
-          </div>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-8 mt-10">
-          <div>
-            <h2 className="font-bold text-xl mb-3">Doctor Information</h2>
-
-            <p>
-              <strong>Experience:</strong> {doctor.experience} Years
-            </p>
-
-            <p>
-              <strong>Clinic:</strong> {doctor.clinicName}
-            </p>
-
-            <p>
-              <strong>Address:</strong> {doctor.clinicAddress}
-            </p>
-
-            <p>
-              <strong>Working Days:</strong> {doctor.workingDays.join(", ")}
-            </p>
-
-            <p>
-              <strong>Clinic Time:</strong> {doctor.clinicStartTime} -{" "}
-              {doctor.clinicEndTime}
-            </p>
-
-            <p>
-              <strong>Lunch:</strong> {doctor.lunchStart} - {doctor.lunchEnd}
-            </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <h2 className="font-bold text-base sm:text-lg text-foreground mb-3">Consultation Fees</h2>
+              <p><strong className="text-foreground">Normal Consultation:</strong> ₹{doctor.consultationFee}</p>
+              {doctor.premiumBookingEnabled && (
+                <p><strong className="text-foreground">Premium Consultation:</strong> ₹{doctor.premiumFee}</p>
+              )}
+              {doctor.homeVisitAvailable && (
+                <p><strong className="text-foreground">Home Visit:</strong> ₹{doctor.homeVisitFee}</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <h2 className="font-bold text-xl mb-3">Consultation Fees</h2>
-
-            <p>Normal: ₹ {doctor.consultationFee}</p>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 pt-6 border-t border-border/60">
+            <button
+              onClick={handleBookNormal}
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm"
+            >
+              Book Normal (₹{doctor.consultationFee})
+            </button>
 
             {doctor.premiumBookingEnabled && (
-              <p>Premium: ₹ {doctor.premiumFee}</p>
+              <button
+                onClick={() => setShowPremiumModal(true)}
+                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm"
+              >
+                Book Premium (₹{doctor.premiumFee})
+              </button>
             )}
 
             {doctor.homeVisitAvailable && (
-              <p>Home Visit: ₹ {doctor.homeVisitFee}</p>
+              <button
+                onClick={() => setShowHomeModal(true)}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm"
+              >
+                Book Home Visit (₹{doctor.homeVisitFee})
+              </button>
             )}
           </div>
         </div>
+      </main>
 
-        <div className="flex gap-4 mt-10">
-          <button
-            onClick={handleBookNormal}
-            className="bg-blue-600 text-white px-6 py-3 rounded-xl"
-          >
-            Book Normal
-          </button>
-
-          {doctor.premiumBookingEnabled && (
-            <button
-              onClick={() => setShowPremiumModal(true)}
-              className="bg-purple-600 text-white px-6 py-3 rounded-xl"
-            >
-              Book Premium
-            </button>
-          )}
-
-          {doctor.homeVisitAvailable && (
-            <button
-              onClick={() => setShowHomeModal(true)}
-              className="bg-green-600 text-white px-6 py-3 rounded-xl"
-            >
-              Book Home Visit
-            </button>
-          )}
-        </div>
-      </div>
-
+      {/* Premium Booking Modal */}
       {showPremiumModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-6">Premium Appointment</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-foreground">Premium Appointment</h2>
 
-            <label className="block font-semibold mb-2">Select Date</label>
-
+            <label className="block text-sm font-semibold mb-2 text-foreground">Select Date</label>
             <input
               type="date"
               value={premiumDate}
               onChange={(e) => setPremiumDate(e.target.value)}
-              className="w-full border rounded-lg p-3 mb-5"
+              className="w-full border border-border rounded-xl p-3 mb-5 text-sm"
             />
 
-            <label className="block font-semibold mb-2">
+            <label className="block text-sm font-semibold mb-2 text-foreground">
               Available Premium Slots
             </label>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               {availableSlots.length > 0 ? (
                 availableSlots.map((slot) => (
                   <button
                     key={slot}
                     onClick={() => setPremiumTime(slot)}
-                    className={`border rounded-lg py-2 transition ${
+                    className={`border rounded-xl py-2 text-xs sm:text-sm font-medium transition ${
                       premiumTime === slot
-                        ? "bg-purple-600 text-white"
-                        : "hover:bg-purple-100"
+                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                        : "hover:bg-purple-50 border-border"
                     }`}
                   >
                     {slot}
                   </button>
                 ))
               ) : (
-                <p className="text-gray-500 col-span-3">
+                <p className="text-muted-foreground text-xs sm:text-sm col-span-full">
                   Select a date to view available slots.
                 </p>
               )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 pt-4 border-t border-border flex justify-end gap-3">
               <button
                 onClick={() => setShowPremiumModal(false)}
-                className="px-5 py-2 rounded-lg border"
+                className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted"
               >
                 Cancel
               </button>
-
               <button
                 onClick={handlePremiumBooking}
-                className="bg-purple-600 text-white px-5 py-2 rounded-lg"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-xs"
               >
                 Continue
               </button>
@@ -509,12 +490,13 @@ useEffect(() => {
         </div>
       )}
 
+      {/* Home Visit Modal */}
       {showHomeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-6">🏠 Book Home Visit</h2>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-foreground">🏠 Book Home Visit</h2>
 
-            {/* Visit Date */}
+            <label className="block text-sm font-semibold mb-1.5 text-foreground">Select Visit Date</label>
             <input
               type="date"
               value={visitDate}
@@ -522,86 +504,80 @@ useEffect(() => {
                 setVisitDate(e.target.value);
                 fetchHomeVisitSlots(e.target.value);
               }}
-              className="w-full border rounded-lg p-3 mb-4"
+              className="w-full border border-border rounded-xl p-3 mb-4 text-sm"
             />
 
-            {/* Available Slots */}
             <div className="mb-5">
-              <label className="font-semibold block mb-3">
+              <label className="text-sm font-semibold block mb-2 text-foreground">
                 Available Time Slots
               </label>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 {homeVisitSlots.length > 0 ? (
                   homeVisitSlots.map((slot) => (
                     <button
                       key={slot}
                       type="button"
                       onClick={() => setSelectedHomeSlot(slot)}
-                      className={`border rounded-lg py-2 transition ${
+                      className={`border rounded-xl py-2 text-xs sm:text-sm font-medium transition ${
                         selectedHomeSlot === slot
-                          ? "bg-green-600 text-white border-green-600"
-                          : "bg-white hover:bg-green-50"
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-white hover:bg-emerald-50 border-border"
                       }`}
                     >
                       {slot}
                     </button>
                   ))
                 ) : (
-                  <p className="text-gray-500 col-span-2">
+                  <p className="text-muted-foreground text-xs sm:text-sm col-span-2">
                     Select a date to view available slots.
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Address */}
-            <textarea
-              placeholder="Full Address"
-              value={homeAddress}
-              onChange={(e) => setHomeAddress(e.target.value)}
-              className="w-full border rounded-lg p-3 mb-3"
-            />
+            <div className="space-y-3">
+              <textarea
+                placeholder="Full Address"
+                value={homeAddress}
+                onChange={(e) => setHomeAddress(e.target.value)}
+                className="w-full border border-border rounded-xl p-3 text-sm min-h-[70px]"
+              />
+              <input
+                type="text"
+                placeholder="Landmark (e.g. Near City Hospital)"
+                value={homeLandmark}
+                onChange={(e) => setHomeLandmark(e.target.value)}
+                className="w-full border border-border rounded-xl p-3 text-sm"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="City"
+                  value={homeCity}
+                  onChange={(e) => setHomeCity(e.target.value)}
+                  className="w-full border border-border rounded-xl p-3 text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Pincode"
+                  value={homePincode}
+                  onChange={(e) => setHomePincode(e.target.value)}
+                  className="w-full border border-border rounded-xl p-3 text-sm"
+                />
+              </div>
+            </div>
 
-            {/* Landmark */}
-            <input
-              type="text"
-              placeholder="Landmark"
-              value={homeLandmark}
-              onChange={(e) => setHomeLandmark(e.target.value)}
-              className="w-full border rounded-lg p-3 mb-3"
-            />
-
-            {/* City */}
-            <input
-              type="text"
-              placeholder="City"
-              value={homeCity}
-              onChange={(e) => setHomeCity(e.target.value)}
-              className="w-full border rounded-lg p-3 mb-3"
-            />
-
-            {/* Pincode */}
-            <input
-              type="text"
-              placeholder="Pincode"
-              value={homePincode}
-              onChange={(e) => setHomePincode(e.target.value)}
-              className="w-full border rounded-lg p-3 mb-6"
-            />
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
               <button
                 onClick={() => setShowHomeModal(false)}
-                className="px-5 py-2 rounded-lg border"
+                className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted"
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleHomeVisitBooking}
-                className="bg-green-600 text-white px-5 py-2 rounded-lg"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-xs"
               >
                 Continue
               </button>
@@ -609,6 +585,8 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+      <Footer />
     </div>
   );
 };

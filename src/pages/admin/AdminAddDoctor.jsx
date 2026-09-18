@@ -57,11 +57,18 @@ const AdminAddDoctor = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
-      <div className="bg-white shadow-xl rounded-2xl p-8">
-        <h1 className="text-3xl font-bold mb-8 text-blue-700">Add Doctor</h1>
+    <div className="max-w-4xl mx-auto py-4 sm:py-6">
+      <div className="bg-white rounded-2xl border border-border shadow-xs p-5 sm:p-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Register New Practitioner
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Create doctor credentials, specialization, consultation fees, and 30-day trial
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-5">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           <input
             name="name"
             placeholder="Doctor Name"
@@ -187,9 +194,9 @@ const AdminAddDoctor = () => {
           <button
             type="submit"
             disabled={loading}
-            className="md:col-span-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold"
+            className="md:col-span-2 bg-primary hover:bg-primary/90 text-primary-foreground py-3.5 rounded-xl font-semibold shadow-xs transition-all disabled:opacity-50"
           >
-            {loading ? "Creating Doctor..." : "Create Doctor"}
+            {loading ? "Creating Doctor..." : "Create Doctor & Activate 30-Day Trial"}
           </button>
         </form>
       </div>
