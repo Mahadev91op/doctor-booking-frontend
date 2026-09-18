@@ -42,7 +42,12 @@ const Login = () => {
       setUser(result.user);
       toast.success("Login Successful");
 
-      if (result.user.role === "admin") {
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectUrl = searchParams.get("redirect");
+
+      if (redirectUrl) {
+        navigate(redirectUrl);
+      } else if (result.user.role === "admin") {
         navigate("/admin/dashboard");
       } else if (result.user.role === "doctor") {
         navigate("/doctor/dashboard");
@@ -69,6 +74,22 @@ const Login = () => {
         
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 pt-4">
+            {/* Quick Demo Helper */}
+            <div className="p-3 bg-blue-50/80 border border-blue-200/60 rounded-xl text-xs space-y-1">
+              <p className="font-bold text-blue-900">Admin Assessment Login:</p>
+              <p className="text-blue-800">
+                Email:{" "}
+                <button
+                  type="button"
+                  onClick={() => setFormData({ mobile: "admin@sehatraj.com", password: "adminPassword123" })}
+                  className="font-mono font-bold underline hover:text-blue-950 text-left"
+                >
+                  admin@sehatraj.com
+                </button>{" "}
+                <span className="text-blue-600 font-medium">(Click to autofill)</span>
+              </p>
+              <p className="text-blue-800 font-mono">Password: adminPassword123</p>
+            </div>
             <div className="space-y-2">
               <Input
                 type="text"

@@ -117,3 +117,17 @@ export const approveRefund = async (refundId) => {
 
   return response.data;
 };
+
+export const updateDoctorPayout = async (doctorId, payoutAccountId) => {
+  const response = await API.put(
+    `/admin/doctor/${doctorId}/payout-account`,
+    { payoutAccountId },
+    {
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
+
+  return response.data;
+};
