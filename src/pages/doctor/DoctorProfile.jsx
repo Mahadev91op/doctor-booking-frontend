@@ -51,6 +51,28 @@ const DoctorProfile = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [homeSlotsLoading, setHomeSlotsLoading] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(null);
+
+  const completeSimulatedPayment = async (orderId, onPaymentSuccess) => {
+    try {
+      setBookingLoading(true);
+      await verifyPayment({
+        razorpay_order_id: orderId,
+        razorpay_payment_id: "pay_test_simulated_" + Date.now(),
+        razorpay_signature: "mock_signature_test",
+      });
+
+      toast.success("Payment Verified & Appointment Confirmed!");
+      setPendingOrder(null);
+      if (onPaymentSuccess) onPaymentSuccess();
+      navigate("/my-appointments");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Payment Verification Failed");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   // Helper to open Razorpay Test Mode or Cloud Order cleanly
   const initiateRazorpayCheckout = ({ order, description, themeColor, onPaymentSuccess }) => {
@@ -58,6 +80,13 @@ const DoctorProfile = () => {
       toast.error("Razorpay SDK is not loaded. Please refresh the page and try again.");
       return;
     }
+
+    setPendingOrder({
+      orderId: order.id,
+      amount: order.amount / 100,
+      description: description || "Doctor Consultation",
+      onPaymentSuccess,
+    });
 
     const isRealRazorpayOrder = order.id && !order.id.startsWith("order_dev_");
 
@@ -77,6 +106,7 @@ const DoctorProfile = () => {
           });
 
           toast.success("Appointment Booked Successfully!");
+          setPendingOrder(null);
           if (onPaymentSuccess) onPaymentSuccess();
           navigate("/my-appointments");
         } catch (error) {
@@ -95,7 +125,7 @@ const DoctorProfile = () => {
       },
       modal: {
         ondismiss: function () {
-          toast("Payment window closed", { icon: "ℹ️" });
+          toast("Payment window closed. You can also use 1-Click Demo Pay helper.", { icon: "ℹ️" });
         },
       },
     };
@@ -104,7 +134,10 @@ const DoctorProfile = () => {
       const rzpInstance = new window.Razorpay(options);
       rzpInstance.on("payment.failed", function (resp) {
         console.error("Payment failed event:", resp);
-        toast.error(resp?.error?.description || "Payment was not completed");
+        toast.error(
+          resp?.error?.description ||
+            "Razorpay Test: Use UPI (success@razorpay) or Test Card 4111 1111 1111 1111"
+        );
       });
       rzpInstance.open();
     } catch (err) {
@@ -481,12 +514,13 @@ const DoctorProfile = () => {
             <label className="block text-sm font-semibold mb-1.5 text-foreground">Select Visit Date</label>
             <input
               type="date"
+              min={new Date().toISOString().split("T")[0]}
               value={visitDate}
               onChange={(e) => {
                 setVisitDate(e.target.value);
                 fetchHomeVisitSlots(e.target.value);
               }}
-              className="w-full border border-border rounded-xl p-3 mb-4 text-sm"
+              className="w-full border border-border rounded-xl p-3 mb-4 text-sm bg-background"
             />
 
             <div className="mb-5">
@@ -495,7 +529,11 @@ const DoctorProfile = () => {
               </label>
 
               <div className="grid grid-cols-2 gap-2">
-                {homeVisitSlots.length > 0 ? (
+                {homeSlotsLoading ? (
+                  <p className="text-muted-foreground text-xs sm:text-sm col-span-2 py-4 text-center animate-pulse">
+                    Loading home visit slots...
+                  </p>
+                ) : homeVisitSlots.length > 0 ? (
                   homeVisitSlots.map((slot) => (
                     <button
                       key={slot}
@@ -504,15 +542,15 @@ const DoctorProfile = () => {
                       className={`border rounded-xl py-2 text-xs sm:text-sm font-medium transition ${
                         selectedHomeSlot === slot
                           ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                          : "bg-white hover:bg-emerald-50 border-border"
+                          : "bg-white hover:bg-emerald-50 border-border text-foreground"
                       }`}
                     >
                       {slot}
                     </button>
                   ))
                 ) : (
-                  <p className="text-muted-foreground text-xs sm:text-sm col-span-2">
-                    Select a date to view available slots.
+                  <p className="text-muted-foreground text-xs sm:text-sm col-span-2 py-4 text-center">
+                    {visitDate ? `No home visit slots available on ${visitDate}.` : "Select a date to view available slots."}
                   </p>
                 )}
               </div>
@@ -523,14 +561,14 @@ const DoctorProfile = () => {
                 placeholder="Full Address"
                 value={homeAddress}
                 onChange={(e) => setHomeAddress(e.target.value)}
-                className="w-full border border-border rounded-xl p-3 text-sm min-h-[70px]"
+                className="w-full border border-border rounded-xl p-3 text-sm min-h-[70px] bg-background"
               />
               <input
                 type="text"
                 placeholder="Landmark (e.g. Near City Hospital)"
                 value={homeLandmark}
                 onChange={(e) => setHomeLandmark(e.target.value)}
-                className="w-full border border-border rounded-xl p-3 text-sm"
+                className="w-full border border-border rounded-xl p-3 text-sm bg-background"
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -538,32 +576,71 @@ const DoctorProfile = () => {
                   placeholder="City"
                   value={homeCity}
                   onChange={(e) => setHomeCity(e.target.value)}
-                  className="w-full border border-border rounded-xl p-3 text-sm"
+                  className="w-full border border-border rounded-xl p-3 text-sm bg-background"
                 />
                 <input
                   type="text"
                   placeholder="Pincode"
                   value={homePincode}
                   onChange={(e) => setHomePincode(e.target.value)}
-                  className="w-full border border-border rounded-xl p-3 text-sm"
+                  className="w-full border border-border rounded-xl p-3 text-sm bg-background"
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border">
               <button
+                type="button"
                 onClick={() => setShowHomeModal(false)}
                 className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted"
               >
                 Cancel
               </button>
               <button
+                type="button"
+                disabled={bookingLoading}
                 onClick={handleHomeVisitBooking}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-xs"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-xs disabled:opacity-50"
               >
-                Continue
+                {bookingLoading ? "Processing..." : `Pay ₹${doctor.homeVisitFee} & Confirm`}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Razorpay Test Mode Helper Floating Card */}
+      {pendingOrder && (
+        <div className="fixed bottom-6 right-6 max-w-sm w-full bg-white border-2 border-primary/40 rounded-2xl p-4 shadow-2xl z-50 animate-in slide-in-from-bottom-5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                💳 Razorpay Test Mode
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                In Razorpay popup, use <span className="font-semibold text-primary">UPI</span>, <span className="font-semibold text-primary">Netbanking</span>, or domestic test card <span className="font-mono font-bold text-primary">4111 1111 1111 1111</span>.
+              </p>
+            </div>
+            <button
+              onClick={() => setPendingOrder(null)}
+              className="text-muted-foreground hover:text-foreground text-xs p-1 rounded-md"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2">
+            <button
+              type="button"
+              disabled={bookingLoading}
+              onClick={() => completeSimulatedPayment(pendingOrder.orderId, pendingOrder.onPaymentSuccess)}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-3 rounded-xl text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+            >
+              {bookingLoading ? "Confirming..." : `⚡ 1-Click Instant Demo Pay (₹${pendingOrder.amount})`}
+            </button>
+            <p className="text-[10px] text-center text-muted-foreground">
+              Instant bypass for local evaluation & testing
+            </p>
           </div>
         </div>
       )}
