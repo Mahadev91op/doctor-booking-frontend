@@ -48,264 +48,240 @@ const DoctorProfile = () => {
   const [selectedHomeSlot, setSelectedHomeSlot] = useState("");
 
   const [homePincode, setHomePincode] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [homeSlotsLoading, setHomeSlotsLoading] = useState(false);
+
+  // Helper to open Razorpay Test Mode or Cloud Order cleanly
+  const initiateRazorpayCheckout = ({ order, description, themeColor, onPaymentSuccess }) => {
+    if (!window.Razorpay) {
+      toast.error("Razorpay SDK is not loaded. Please refresh the page and try again.");
+      return;
+    }
+
+    const isRealRazorpayOrder = order.id && !order.id.startsWith("order_dev_");
+
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_T2inS5kXnDHlfO",
+      amount: order.amount,
+      currency: order.currency || "INR",
+      name: "SehatRaj Healthcare",
+      description: description || "Doctor Appointment",
+      ...(isRealRazorpayOrder ? { order_id: order.id } : {}),
+      handler: async function (response) {
+        try {
+          await verifyPayment({
+            razorpay_order_id: response.razorpay_order_id || order.id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature || "mock_signature_test",
+          });
+
+          toast.success("Appointment Booked Successfully!");
+          if (onPaymentSuccess) onPaymentSuccess();
+          navigate("/my-appointments");
+        } catch (error) {
+          toast.error(
+            error.response?.data?.message || "Payment Verification Failed",
+          );
+        }
+      },
+      prefill: {
+        name: user?.name || "",
+        email: user?.email || "",
+        contact: user?.mobile || "",
+      },
+      theme: {
+        color: themeColor || "#2563eb",
+      },
+      modal: {
+        ondismiss: function () {
+          toast("Payment window closed", { icon: "ℹ️" });
+        },
+      },
+    };
+
+    try {
+      const rzpInstance = new window.Razorpay(options);
+      rzpInstance.on("payment.failed", function (resp) {
+        console.error("Payment failed event:", resp);
+        toast.error(resp?.error?.description || "Payment was not completed");
+      });
+      rzpInstance.open();
+    } catch (err) {
+      console.error("Razorpay initialization error:", err);
+      toast.error("Failed to open Razorpay payment window: " + err.message);
+    }
+  };
+
   const handleBookNormal = async () => {
     if (!user) {
-      toast.error("Please login first");
-      navigate("/login");
+      toast.error("Please login first to book an appointment");
+      navigate(`/login?redirect=/doctor/${doctor._id}`);
       return;
     }
 
     try {
+      setBookingLoading(true);
       // 1. Create Appointment
       const booking = await bookNormalAppointment(doctor._id);
 
       // 2. Create Razorpay Order
       const orderResponse = await createOrder(booking.appointment._id);
 
-      const { order } = orderResponse;
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-
-        amount: order.amount,
-
-        currency: order.currency,
-
-        name: "Nexora Health",
-
-        description: "Doctor Appointment",
-
-        order_id: order.id,
-
-        handler: async function (response) {
-          try {
-            await verifyPayment({
-              razorpay_order_id: response.razorpay_order_id,
-
-              razorpay_payment_id: response.razorpay_payment_id,
-
-              razorpay_signature: response.razorpay_signature,
-            });
-
-            toast.success("Appointment Booked Successfully!");
-
-            navigate("/my-appointments");
-          } catch (error) {
-            toast.error(
-              error.response?.data?.message || "Payment Verification Failed",
-            );
-          }
-        },
-
-        prefill: {
-          name: user.name,
-
-          email: user.email,
-
-          contact: user.mobile,
-        },
-
-        theme: {
-          color: "#2563eb",
-        },
-      };
-
-      const razorpay = new window.Razorpay(options);
-
-      razorpay.on("payment.failed", function () {
-        toast.error("Payment Failed");
+      initiateRazorpayCheckout({
+        order: orderResponse.order,
+        description: `Normal Consultation with ${doctor.name}`,
+        themeColor: "#2563eb",
       });
-
-      razorpay.open();
     } catch (error) {
       console.error(error);
-
       toast.error(error.response?.data?.message || "Booking Failed");
+    } finally {
+      setBookingLoading(false);
     }
   };
-const handlePremiumBooking = async () => {
-  if (!premiumDate || !premiumTime) {
-    toast.error("Please select date and slot");
-    return;
-  }
 
-  try {
-    // 1. Create Premium Appointment
-    const booking = await bookPremiumAppointment(
-      doctor._id,
-      premiumDate,
-      premiumTime,
-    );
+  const openPremiumModal = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().split("T")[0];
+    setPremiumDate(dateStr);
+    setPremiumTime("");
+    setShowPremiumModal(true);
+    fetchPremiumSlots(dateStr);
+  };
 
-    // 2. Create Razorpay Order
-    const orderResponse = await createOrder(booking.appointment._id);
+  const fetchPremiumSlots = async (date) => {
+    if (!date || !doctor) return;
+    try {
+      setSlotsLoading(true);
+      const result = await getPremiumSlots(doctor._id, date);
+      setAvailableSlots(result.availableSlots || []);
+    } catch (error) {
+      console.error("Error loading premium slots:", error);
+      setAvailableSlots([]);
+      toast.error(error.response?.data?.message || "Unable to load slots");
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
 
-    const { order } = orderResponse;
+  const handlePremiumBooking = async () => {
+    if (!user) {
+      toast.error("Please login first to book an appointment");
+      navigate(`/login?redirect=/doctor/${doctor._id}`);
+      return;
+    }
 
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+    if (!premiumDate || !premiumTime) {
+      toast.error("Please select a date and an available slot");
+      return;
+    }
 
-      amount: order.amount,
+    try {
+      setBookingLoading(true);
+      // 1. Create Premium Appointment
+      const booking = await bookPremiumAppointment(
+        doctor._id,
+        premiumDate,
+        premiumTime,
+      );
 
-      currency: order.currency,
+      // 2. Create Razorpay Order
+      const orderResponse = await createOrder(booking.appointment._id);
 
-      name: "SehatRaj",
+      initiateRazorpayCheckout({
+        order: orderResponse.order,
+        description: `Premium Consultation with ${doctor.name} (${premiumTime})`,
+        themeColor: "#7c3aed",
+        onPaymentSuccess: () => setShowPremiumModal(false),
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Booking Failed");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
-      description: "Premium Doctor Appointment",
+  const openHomeModal = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().split("T")[0];
+    setVisitDate(dateStr);
+    setSelectedHomeSlot("");
+    setShowHomeModal(true);
+    fetchHomeVisitSlots(dateStr);
+  };
 
-      order_id: order.id,
+  const fetchHomeVisitSlots = async (date) => {
+    if (!date || !doctor) return;
+    try {
+      setHomeSlotsLoading(true);
+      const result = await getHomeVisitSlots(doctor._id, date);
+      setHomeVisitSlots(result.availableSlots || []);
+    } catch (error) {
+      console.error(error);
+      setHomeVisitSlots([]);
+      toast.error(error.response?.data?.message || "Unable to load slots");
+    } finally {
+      setHomeSlotsLoading(false);
+    }
+  };
 
-      handler: async function (response) {
-        try {
-          await verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
+  const handleHomeVisitBooking = async () => {
+    if (!user) {
+      toast.error("Please login first to book a home visit");
+      navigate(`/login?redirect=/doctor/${doctor._id}`);
+      return;
+    }
 
-          toast.success("Premium Appointment Booked Successfully!");
+    if (
+      !visitDate ||
+      !selectedHomeSlot ||
+      !homeAddress ||
+      !homeCity ||
+      !homePincode
+    ) {
+      toast.error("Please fill all required fields");
+      return;
+    }
 
-          setShowPremiumModal(false);
+    try {
+      setBookingLoading(true);
+      // 1. Create Home Visit Appointment
+      const booking = await bookHomeVisitAppointment(
+        doctor._id,
+        visitDate,
+        selectedHomeSlot,
+        homeAddress,
+        homeLandmark,
+        homeCity,
+        homePincode,
+      );
 
-          navigate("/my-appointments");
-        } catch (error) {
-          toast.error(
-            error.response?.data?.message || "Payment Verification Failed",
-          );
-        }
-      },
+      // 2. Create Razorpay Order
+      const orderResponse = await createOrder(booking.appointment._id);
 
-      prefill: {
-        name: user.name,
-        email: user.email,
-        contact: user.mobile,
-      },
-
-      theme: {
-        color: "#7c3aed",
-      },
-    };
-
-    const razorpay = new window.Razorpay(options);
-
-    razorpay.on("payment.failed", function () {
-      toast.error("Payment Failed");
-    });
-
-    razorpay.open();
-  } catch (error) {
-    console.error(error);
-
-    toast.error(error.response?.data?.message || "Booking Failed");
-  }
-};
-
-const fetchHomeVisitSlots = async (date) => {
-  try {
-    const result = await getHomeVisitSlots(doctor._id, date);
-
-    setHomeVisitSlots(result.availableSlots);
-  } catch (error) {
-    console.error(error);
-    toast.error(error.response?.data?.message || "Unable to load slots");
-  }
-};
-
-const handleHomeVisitBooking = async () => {
- if (
-   !visitDate ||
-   !selectedHomeSlot ||
-   !homeAddress ||
-   !homeCity ||
-   !homePincode
- ) {
-   toast.error("Please fill all required fields");
-   return;
- }
-
-  try {
-    // 1. Create Home Visit Appointment
-    const booking = await bookHomeVisitAppointment(
-      doctor._id,
-      visitDate,
-    selectedHomeSlot,
-      homeAddress,
-      homeLandmark,
-      homeCity,
-      homePincode,
-    );
-
-    // 2. Create Razorpay Order
-    const orderResponse = await createOrder(booking.appointment._id);
-
-    const { order } = orderResponse;
-
-    const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-
-      amount: order.amount,
-
-      currency: order.currency,
-
-      name: "SehatRaj",
-
-      description: "Home Visit Appointment",
-
-      order_id: order.id,
-
-      handler: async function (response) {
-        try {
-          await verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-
-          toast.success("Home Visit Booked Successfully!");
-
-          setShowHomeModal(false);
-
-          navigate("/my-appointments");
-        } catch (error) {
-          toast.error(
-            error.response?.data?.message || "Payment Verification Failed",
-          );
-        }
-      },
-
-      prefill: {
-        name: user.name,
-        email: user.email,
-        contact: user.mobile,
-      },
-
-      theme: {
-        color: "#16a34a",
-      },
-    };
-
-    const razorpay = new window.Razorpay(options);
-
-    razorpay.on("payment.failed", function () {
-      toast.error("Payment Failed");
-    });
-
-    razorpay.open();
-  } catch (error) {
-    console.error(error);
-
-    toast.error(error.response?.data?.message || "Booking Failed");
-  }
-
-};
+      initiateRazorpayCheckout({
+        order: orderResponse.order,
+        description: `Home Visit by ${doctor.name}`,
+        themeColor: "#16a34a",
+        onPaymentSuccess: () => setShowHomeModal(false),
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Booking Failed");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchDoctor = async () => {
       try {
         const result = await getDoctorById(id);
-
         console.log("Doctor API Result:", result);
-
         setDoctor(result.doctor);
       } catch (error) {
         console.error(error);
@@ -316,37 +292,6 @@ const handleHomeVisitBooking = async () => {
 
     fetchDoctor();
   }, [id]);
-
-useEffect(() => {
-  const loadSlots = async () => {
-    if (!premiumDate || !doctor) return;
-
-    try {
-      const result = await getPremiumSlots(doctor._id, premiumDate);
-
-      setAvailableSlots(result.availableSlots);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  loadSlots();
-}, [premiumDate, doctor]);
-useEffect(() => {
-  const loadHomeSlots = async () => {
-    if (!visitDate || !doctor) return;
-
-    try {
-      const result = await getHomeVisitSlots(doctor._id, visitDate);
-
-      setHomeVisitSlots(result.availableSlots);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  loadHomeSlots();
-}, [visitDate, doctor]);
 
   if (loading) {
     return <div className="text-center py-20 text-2xl">Loading doctor...</div>;
@@ -406,15 +351,17 @@ useEffect(() => {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 pt-6 border-t border-border/60">
             <button
               onClick={handleBookNormal}
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm"
+              disabled={bookingLoading}
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
             >
-              Book Normal (₹{doctor.consultationFee})
+              {bookingLoading ? "Processing..." : `Book Normal (₹${doctor.consultationFee})`}
             </button>
 
             {doctor.premiumBookingEnabled && (
               <button
-                onClick={() => setShowPremiumModal(true)}
-                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm"
+                onClick={openPremiumModal}
+                disabled={bookingLoading}
+                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
               >
                 Book Premium (₹{doctor.premiumFee})
               </button>
@@ -422,8 +369,9 @@ useEffect(() => {
 
             {doctor.homeVisitAvailable && (
               <button
-                onClick={() => setShowHomeModal(true)}
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm"
+                onClick={openHomeModal}
+                disabled={bookingLoading}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
               >
                 Book Home Visit (₹{doctor.homeVisitFee})
               </button>
@@ -436,54 +384,88 @@ useEffect(() => {
       {showPremiumModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-foreground">Premium Appointment</h2>
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-foreground">⚡ Premium Consultation</h2>
 
-            <label className="block text-sm font-semibold mb-2 text-foreground">Select Date</label>
+            <label className="block text-sm font-semibold mb-2 text-foreground">Select Appointment Date</label>
             <input
               type="date"
+              min={new Date().toISOString().split("T")[0]}
               value={premiumDate}
-              onChange={(e) => setPremiumDate(e.target.value)}
-              className="w-full border border-border rounded-xl p-3 mb-5 text-sm"
+              onChange={(e) => {
+                const newDate = e.target.value;
+                setPremiumDate(newDate);
+                setPremiumTime("");
+                fetchPremiumSlots(newDate);
+              }}
+              className="w-full border border-border rounded-xl p-3 mb-5 text-sm bg-background"
             />
 
-            <label className="block text-sm font-semibold mb-2 text-foreground">
-              Available Premium Slots
-            </label>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-              {availableSlots.length > 0 ? (
-                availableSlots.map((slot) => (
-                  <button
-                    key={slot}
-                    onClick={() => setPremiumTime(slot)}
-                    className={`border rounded-xl py-2 text-xs sm:text-sm font-medium transition ${
-                      premiumTime === slot
-                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                        : "hover:bg-purple-50 border-border"
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                ))
-              ) : (
-                <p className="text-muted-foreground text-xs sm:text-sm col-span-full">
-                  Select a date to view available slots.
-                </p>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-foreground">
+                Available Premium Slots
+              </label>
+              {slotsLoading && (
+                <span className="text-xs text-purple-600 font-medium animate-pulse">
+                  Checking slots...
+                </span>
               )}
             </div>
 
+            <div className="border border-border/80 rounded-xl p-3 max-h-56 overflow-y-auto bg-slate-50/50">
+              {slotsLoading ? (
+                <div className="py-8 text-center text-sm text-muted-foreground animate-pulse">
+                  Loading available slots for {premiumDate}...
+                </div>
+              ) : availableSlots.length > 0 ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {availableSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setPremiumTime(slot)}
+                      className={`border rounded-xl py-2 px-1 text-xs font-semibold transition ${
+                        premiumTime === slot
+                          ? "bg-purple-600 text-white border-purple-600 shadow-sm ring-2 ring-purple-300"
+                          : "bg-white hover:bg-purple-50 border-border text-foreground hover:border-purple-300"
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-xs sm:text-sm text-muted-foreground">
+                  {premiumDate
+                    ? `No slots available on ${premiumDate}. Please choose another working date.`
+                    : "Please pick a date above to view available slots."}
+                </div>
+              )}
+            </div>
+
+            {premiumTime && (
+              <div className="mt-3 p-2.5 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-900 font-medium flex items-center justify-between">
+                <span>Selected Time Slot:</span>
+                <span className="font-bold text-sm bg-purple-600 text-white px-2.5 py-0.5 rounded-lg">
+                  {premiumTime}
+                </span>
+              </div>
+            )}
+
             <div className="mt-6 pt-4 border-t border-border flex justify-end gap-3">
               <button
+                type="button"
                 onClick={() => setShowPremiumModal(false)}
                 className="px-5 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted"
               >
                 Cancel
               </button>
               <button
+                type="button"
+                disabled={!premiumTime || bookingLoading}
                 onClick={handlePremiumBooking}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-xs"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue
+                {bookingLoading ? "Processing..." : `Pay ₹${doctor.premiumFee} & Confirm`}
               </button>
             </div>
           </div>
