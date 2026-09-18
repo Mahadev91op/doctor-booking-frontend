@@ -20,6 +20,7 @@ const AdminAddDoctor = () => {
     consultationFee: "",
     premiumFee: "",
     homeVisitFee: "",
+    payoutAccountId: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -173,6 +174,14 @@ const AdminAddDoctor = () => {
             value={formData.homeVisitFee}
             onChange={handleChange}
             required
+          />
+
+          <input
+            name="payoutAccountId"
+            placeholder="Doctor Payout / Linked Account ID (e.g., acc_12345)"
+            className="border p-3 rounded-xl md:col-span-2"
+            value={formData.payoutAccountId}
+            onChange={handleChange}
           />
 
           <button

@@ -33,6 +33,10 @@ const Register = () => {
       toast.error("Passwords do not match");
       return;
     }
+    if (formData.password.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
     try {
       setLoading(true);
       await registerUser({
