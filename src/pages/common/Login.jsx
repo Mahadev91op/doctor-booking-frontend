@@ -31,7 +31,12 @@ const Login = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const result = await loginUser(formData);
+      const identifier = formData.mobile.trim();
+      const result = await loginUser({
+        mobile: identifier,
+        email: identifier,
+        password: formData.password,
+      });
       localStorage.setItem("token", result.token);
       localStorage.setItem("user", JSON.stringify(result.user));
       setUser(result.user);
@@ -68,7 +73,7 @@ const Login = () => {
               <Input
                 type="text"
                 name="mobile"
-                placeholder="Mobile Number"
+                placeholder="Mobile Number or Email"
                 value={formData.mobile}
                 onChange={handleChange}
                 required
