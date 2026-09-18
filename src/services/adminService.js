@@ -98,6 +98,16 @@ export const activateSubscription = async (activationData) => {
   return response.data;
 };
 
+export const checkExpiredSubscriptions = async () => {
+  const response = await API.put("/admin/check-expiry", {}, {
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+
+  return response.data;
+};
+
 export const getRevenueReport = async () => {
   const response = await API.get("/admin/revenue-report", {
     headers: {

@@ -6,15 +6,14 @@ import DoctorLayout from "../../layouts/DoctorLayout";
 import {
   createSubscriptionOrder,
   verifySubscriptionPayment,
+  simulateSubscriptionPayment,
 } from "../../services/subscriptionService";
-
-
-
 
 const DoctorDashboard = () => {
   const [dashboard, setDashboard] = useState(null);
-const [openSubscription, setOpenSubscription] = useState(false);
-const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [openSubscription, setOpenSubscription] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
   const fetchDashboard = async () => {
     try {
       const result = await getDoctorDashboard();
@@ -29,6 +28,7 @@ const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   useEffect(() => {
     fetchDashboard();
   }, []);
+
   const handleSubscriptionPayment = async (plan) => {
     try {
       setSubscriptionLoading(true);
@@ -40,28 +40,19 @@ const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-
         amount: order.amount,
-
         currency: order.currency,
-
         name: "SehatRaj",
-
-        description: "Doctor Subscription",
-
-        order_id: order.id,
-
+        description: `Doctor SaaS Subscription (${plan.toUpperCase()})`,
         handler: async function (response) {
           try {
             await verifySubscriptionPayment({
-              razorpay_order_id: response.razorpay_order_id,
-
+              razorpay_order_id: response.razorpay_order_id || order.id,
               razorpay_payment_id: response.razorpay_payment_id,
-
               razorpay_signature: response.razorpay_signature,
             });
 
-            toast.success("Subscription Activated Successfully");
+            toast.success("Subscription Activated Successfully! Practice is now active.");
 
             setOpenSubscription(false);
 
@@ -83,10 +74,14 @@ const [subscriptionLoading, setSubscriptionLoading] = useState(false);
         },
       };
 
+      if (order?.id && !order.id.startsWith("order_dev_")) {
+        options.order_id = order.id;
+      }
+
       const razorpay = new window.Razorpay(options);
 
       razorpay.on("payment.failed", function () {
-        toast.error("Payment Failed");
+        toast.error("Razorpay Test: Use UPI (success@razorpay) or Test Card 4111 1111 1111 1111");
       });
 
       razorpay.open();
@@ -100,26 +95,42 @@ const [subscriptionLoading, setSubscriptionLoading] = useState(false);
       setSubscriptionLoading(false);
     }
   };
+
+  const handleSimulateSubscriptionPayment = async (plan) => {
+    try {
+      setSubscriptionLoading(true);
+      await simulateSubscriptionPayment(plan);
+      toast.success(`Demo Mode: ${plan.toUpperCase()} Subscription Activated Successfully!`);
+      setOpenSubscription(false);
+      fetchDashboard();
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Demo activation failed");
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
   if (!dashboard) {
     return (
       <div className="text-center py-20 text-2xl">Loading Dashboard...</div>
     );
   }
-const getRemainingDays = () => {
-  const expiryDateVal =
-    dashboard.doctor.subscriptionStatus === "trial"
-      ? dashboard.doctor.trialEndDate || dashboard.doctor.subscriptionExpiryDate
-      : dashboard.doctor.subscriptionExpiryDate;
+  const getRemainingDays = () => {
+    const expiryDateVal =
+      dashboard.doctor.subscriptionStatus === "trial"
+        ? dashboard.doctor.trialEndDate || dashboard.doctor.subscriptionExpiryDate
+        : dashboard.doctor.subscriptionExpiryDate;
 
-  if (!expiryDateVal) return 0;
+    if (!expiryDateVal) return 0;
 
-  const today = new Date();
-  const expiry = new Date(expiryDateVal);
+    const today = new Date();
+    const expiry = new Date(expiryDateVal);
 
-  const diff = expiry - today;
+    const diff = expiry - today;
 
-  return Math.max(Math.ceil(diff / (1000 * 60 * 60 * 24)), 0);
-};
+    return Math.max(Math.ceil(diff / (1000 * 60 * 60 * 24)), 0);
+  };
 
   return (
     <DoctorLayout>
@@ -291,6 +302,7 @@ const getRemainingDays = () => {
         open={openSubscription}
         onClose={() => setOpenSubscription(false)}
         onContinue={handleSubscriptionPayment}
+        onSimulatePay={handleSimulateSubscriptionPayment}
         loading={subscriptionLoading}
       />
     </DoctorLayout>

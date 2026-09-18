@@ -5,6 +5,8 @@ import {
   getDoctors,
   suspendDoctor,
   updateDoctorPayout,
+  checkExpiredSubscriptions,
+  activateSubscription,
 } from "../../services/adminService";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -16,8 +18,10 @@ import {
   Calendar,
   CheckCircle2,
   AlertCircle,
+  RefreshCw,
   X,
 } from "lucide-react";
+
 
 const AdminDoctors = () => {
   const [doctors, setDoctors] = useState([]);
@@ -25,6 +29,7 @@ const AdminDoctors = () => {
   const [editingPayoutDoctor, setEditingPayoutDoctor] = useState(null);
   const [payoutInput, setPayoutInput] = useState("");
   const [savingPayout, setSavingPayout] = useState(false);
+  const [checkingExpiry, setCheckingExpiry] = useState(false);
 
   useEffect(() => {
     loadDoctors();
@@ -39,6 +44,29 @@ const AdminDoctors = () => {
       toast.error("Unable to load doctors");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCheckExpiry = async () => {
+    try {
+      setCheckingExpiry(true);
+      const res = await checkExpiredSubscriptions();
+      toast.success(res.message || "Subscriptions check completed");
+      loadDoctors();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to check expirations");
+    } finally {
+      setCheckingExpiry(false);
+    }
+  };
+
+  const handleAdminActivate = async (doctorId, plan = "monthly") => {
+    try {
+      await activateSubscription({ doctorId, plan });
+      toast.success(`Activated ${plan} plan for doctor!`);
+      loadDoctors();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to activate plan");
     }
   };
 
@@ -81,12 +109,28 @@ const AdminDoctors = () => {
           </p>
         </div>
 
-        <Link to="/admin/add-doctor">
-          <Button className="w-full sm:w-auto rounded-xl shadow-xs font-semibold">
-            <UserPlus className="w-4 h-4 mr-2" />
-            <span>Add New Doctor</span>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleCheckExpiry}
+            disabled={checkingExpiry}
+            className="w-full sm:w-auto rounded-xl shadow-xs font-semibold border-border"
+          >
+            {checkingExpiry ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            <span>Check Expirations</span>
           </Button>
-        </Link>
+
+          <Link to="/admin/add-doctor">
+            <Button className="w-full sm:w-auto rounded-xl shadow-xs font-semibold">
+              <UserPlus className="w-4 h-4 mr-2" />
+              <span>Add New Doctor</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Table */}
@@ -187,14 +231,27 @@ const AdminDoctors = () => {
 
                         {/* Action Buttons */}
                         <td className="p-4 pr-6 text-right">
-                          <Button
-                            size="sm"
-                            variant={doctor.subscriptionStatus === "suspended" ? "default" : "destructive"}
-                            onClick={() => handleSuspend(doctor._id)}
-                            className="rounded-xl text-xs h-8 px-3"
-                          >
-                            {doctor.subscriptionStatus === "suspended" ? "Activate" : "Suspend"}
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            {doctor.subscriptionStatus !== "active" && (
+                              <button
+                                type="button"
+                                onClick={() => handleAdminActivate(doctor._id, "monthly")}
+                                className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg border border-blue-200 transition-colors whitespace-nowrap"
+                                title="Activate Monthly ₹499 SaaS Subscription"
+                              >
+                                Activate ₹499
+                              </button>
+                            )}
+
+                            <Button
+                              size="sm"
+                              variant={doctor.subscriptionStatus === "suspended" ? "default" : "destructive"}
+                              onClick={() => handleSuspend(doctor._id)}
+                              className="rounded-xl text-xs h-8 px-3"
+                            >
+                              {doctor.subscriptionStatus === "suspended" ? "Activate" : "Suspend"}
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );

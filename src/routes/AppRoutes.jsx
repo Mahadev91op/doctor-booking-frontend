@@ -22,6 +22,7 @@ import DoctorAppointments from "../pages/doctor/DoctorAppointments";
 import DoctorAvailability from "../pages/doctor/DoctorAvailability";
 import DoctorEarnings from "../pages/doctor/DoctorEarnings";
 import DoctorAnalytics from "../pages/doctor/DoctorAnalytics";
+import Subscription from "../pages/doctor/Subscription";
 
 import AdminLayout from "../layouts/AdminLayout";
 import AdminDashboard from "../pages/admin/AdminDashboard";
@@ -104,6 +105,15 @@ const AppRoutes = () => {
           element={
             <ProtectedDoctorRoute>
               <DoctorAnalytics />
+            </ProtectedDoctorRoute>
+          }
+        />
+
+        <Route
+          path="/doctor/subscription"
+          element={
+            <ProtectedDoctorRoute>
+              <Subscription />
             </ProtectedDoctorRoute>
           }
         />

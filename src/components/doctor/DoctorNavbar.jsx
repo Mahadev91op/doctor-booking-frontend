@@ -20,9 +20,11 @@ import {
   Clock,
   IndianRupee,
   TrendingUp,
+  CreditCard,
   Menu,
   X,
 } from "lucide-react";
+
 
 const DoctorNavbar = () => {
   const { user, logout } = useAuth();
@@ -90,6 +92,14 @@ const DoctorNavbar = () => {
             >
               Analytics
             </Link>
+            <Link
+              to="/doctor/subscription"
+              className={`transition-colors hover:text-primary ${
+                isActive("/doctor/subscription") ? "text-primary font-semibold" : ""
+              }`}
+            >
+              Subscription
+            </Link>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
@@ -124,6 +134,12 @@ const DoctorNavbar = () => {
                   <Link to="/doctor/dashboard" className="cursor-pointer flex items-center">
                     <LayoutDashboard className="mr-2 h-4 w-4 text-primary" />
                     <span>Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/doctor/subscription" className="cursor-pointer flex items-center">
+                    <CreditCard className="mr-2 h-4 w-4 text-primary" />
+                    <span>Subscription (₹499/mo)</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
@@ -209,6 +225,18 @@ const DoctorNavbar = () => {
             >
               <TrendingUp className="w-5 h-5" />
               <span>Analytics</span>
+            </Link>
+
+            <Link
+              to="/doctor/subscription"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                isActive("/doctor/subscription")
+                  ? "bg-primary/10 text-primary font-semibold"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <CreditCard className="w-5 h-5" />
+              <span>Subscription & Billing</span>
             </Link>
           </div>
 

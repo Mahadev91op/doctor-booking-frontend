@@ -381,32 +381,52 @@ const DoctorProfile = () => {
             </div>
           </div>
 
+          {["expired", "suspended"].includes(doctor.subscriptionStatus) && (
+            <div className="mt-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <p className="font-bold text-sm">Practice Profile Inactive</p>
+                <p className="text-xs text-amber-700">
+                  This doctor is currently unavailable for new bookings. Please select another specialist or check back later.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-8 pt-6 border-t border-border/60">
             <button
               onClick={handleBookNormal}
-              disabled={bookingLoading}
-              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
+              disabled={bookingLoading || ["expired", "suspended"].includes(doctor.subscriptionStatus)}
+              className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {bookingLoading ? "Processing..." : `Book Normal (₹${doctor.consultationFee})`}
+              {bookingLoading
+                ? "Processing..."
+                : ["expired", "suspended"].includes(doctor.subscriptionStatus)
+                ? "Doctor Unavailable"
+                : `Book Normal (₹${doctor.consultationFee})`}
             </button>
 
             {doctor.premiumBookingEnabled && (
               <button
                 onClick={openPremiumModal}
-                disabled={bookingLoading}
-                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
+                disabled={bookingLoading || ["expired", "suspended"].includes(doctor.subscriptionStatus)}
+                className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Book Premium (₹{doctor.premiumFee})
+                {["expired", "suspended"].includes(doctor.subscriptionStatus)
+                  ? "Premium Unavailable"
+                  : `Book Premium (₹${doctor.premiumFee})`}
               </button>
             )}
 
             {doctor.homeVisitAvailable && (
               <button
                 onClick={openHomeModal}
-                disabled={bookingLoading}
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50"
+                disabled={bookingLoading || ["expired", "suspended"].includes(doctor.subscriptionStatus)}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Book Home Visit (₹{doctor.homeVisitFee})
+                {["expired", "suspended"].includes(doctor.subscriptionStatus)
+                  ? "Home Visit Unavailable"
+                  : `Book Home Visit (₹${doctor.homeVisitFee})`}
               </button>
             )}
           </div>
