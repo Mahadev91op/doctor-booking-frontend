@@ -42,24 +42,55 @@ const AppointmentTicket = () => {
   }, [id]);
 
   const downloadTicket = async () => {
+    if (!appointment) return;
     try {
       setDownloading(true);
       const pdfBlob = await downloadTicketAPI(appointment._id);
-      const url = window.URL.createObjectURL(pdfBlob);
+
+      // Verify if response is an error disguised as a blob
+      if (pdfBlob.type === "application/json") {
+        const text = await pdfBlob.text();
+        const json = JSON.parse(text);
+        throw new Error(json.message || "Failed to download ticket");
+      }
+
+      // Create PDF blob URL
+      const blob = new Blob([pdfBlob], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Ticket-${appointment.bookingReference || appointment._id}.pdf`;
+      const ref = appointment.bookingReference || appointment._id;
+      link.download = `Ticket-${ref}.pdf`;
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      // Revoke after delay to allow browser to start download
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 5000);
+
       toast.success("Ticket downloaded successfully!");
     } catch (error) {
-      toast.error("Unable to download ticket");
-      console.error(error);
+      let msg = "Unable to download ticket";
+      if (error.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const errJson = JSON.parse(text);
+          if (errJson.message) msg = errJson.message;
+        } catch (_) {}
+      } else if (error.message) {
+        msg = error.message;
+      }
+      toast.error(msg);
+      console.error("Ticket download error:", error);
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   if (!appointment) {
@@ -80,10 +111,51 @@ const AppointmentTicket = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <Navbar />
+      {/* Print CSS to isolate and format the ticket */}
+      <style>{`
+        @media print {
+          @page {
+            size: auto;
+            margin: 10mm 15mm;
+          }
+          body {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .no-print, nav, footer, header {
+            display: none !important;
+          }
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+          }
+          #ticket {
+            box-shadow: none !important;
+            border: 1.5px solid #64748b !important;
+            border-radius: 16px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            overflow: hidden !important;
+            page-break-inside: avoid !important;
+          }
+          .bg-primary {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+          }
+        }
+      `}</style>
+
+      <div className="no-print">
+        <Navbar />
+      </div>
 
       <main className="flex-1 max-w-3xl w-full mx-auto py-8 sm:py-12 px-4 sm:px-6">
-        <div className="mb-4">
+        <div className="mb-4 no-print">
           <Link
             to="/my-appointments"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
@@ -192,7 +264,7 @@ const AppointmentTicket = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 sm:mt-8">
+        <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 sm:mt-8 no-print">
           <Button
             onClick={downloadTicket}
             disabled={downloading}
@@ -204,7 +276,7 @@ const AppointmentTicket = () => {
 
           <Button
             variant="outline"
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="w-full sm:w-auto rounded-xl px-7 h-12 text-sm font-semibold border-border shadow-xs hover:bg-muted"
           >
             <Printer className="w-4 h-4 mr-2" />
@@ -213,7 +285,9 @@ const AppointmentTicket = () => {
         </div>
       </main>
 
-      <Footer />
+      <div className="no-print">
+        <Footer />
+      </div>
     </div>
   );
 };

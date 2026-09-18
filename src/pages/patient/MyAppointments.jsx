@@ -28,7 +28,13 @@ const MyAppointments = () => {
       try {
         setLoading(true);
         const result = await getMyAppointments();
-        setAppointments(result.appointments || []);
+        const confirmedList = (result.appointments || []).filter(
+          (apt) =>
+            apt.paymentStatus === "paid" &&
+            apt.status !== "pending_payment" &&
+            apt.status !== "failed"
+        );
+        setAppointments(confirmedList);
       } catch (error) {
         toast.error("Failed to load appointments");
       } finally {
