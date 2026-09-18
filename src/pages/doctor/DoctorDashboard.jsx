@@ -106,18 +106,64 @@ const [subscriptionLoading, setSubscriptionLoading] = useState(false);
     );
   }
 const getRemainingDays = () => {
-  if (!dashboard.doctor.subscriptionExpiryDate) return 0;
+  const expiryDateVal =
+    dashboard.doctor.subscriptionStatus === "trial"
+      ? dashboard.doctor.trialEndDate || dashboard.doctor.subscriptionExpiryDate
+      : dashboard.doctor.subscriptionExpiryDate;
+
+  if (!expiryDateVal) return 0;
 
   const today = new Date();
-  const expiry = new Date(dashboard.doctor.subscriptionExpiryDate);
+  const expiry = new Date(expiryDateVal);
 
   const diff = expiry - today;
 
   return Math.max(Math.ceil(diff / (1000 * 60 * 60 * 24)), 0);
 };
+
   return (
     <DoctorLayout>
       <div className="max-w-7xl mx-auto py-10 px-4">
+        {/* Trial & Subscription Status Notification Banners */}
+        {dashboard.doctor.subscriptionStatus === "trial" && (
+          <div className="mb-6 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="font-bold text-blue-900 text-lg">
+                ✨ 30-Day Free Trial Active
+              </p>
+              <p className="text-blue-700 text-sm">
+                You have {getRemainingDays()} day(s) remaining in your trial. All features and patient bookings are enabled.
+              </p>
+            </div>
+            <button
+              onClick={() => setOpenSubscription(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap shadow-sm"
+            >
+              Upgrade to Monthly Plan
+            </button>
+          </div>
+        )}
+
+        {(dashboard.doctor.subscriptionStatus === "expired" ||
+          dashboard.doctor.subscriptionStatus === "past_due") && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <p className="font-bold text-red-900 text-lg">
+                ⚠️ Practice Profile Inactive (Trial / Subscription Expired)
+              </p>
+              <p className="text-red-700 text-sm">
+                Your 30-day free trial has expired. Subscribe to an active monthly plan to resume receiving patient appointments.
+              </p>
+            </div>
+            <button
+              onClick={() => setOpenSubscription(true)}
+              className="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap shadow-sm"
+            >
+              Subscribe Now (₹499/mo)
+            </button>
+          </div>
+        )}
+
         <h1 className="text-4xl font-bold mb-8">
           Welcome Dr. {dashboard.doctor.name}
         </h1>
@@ -187,6 +233,17 @@ const getRemainingDays = () => {
                 ).toLocaleDateString()}
               </p>
 
+              <p className="mt-2 text-sm text-gray-600">
+                <strong>Payout Account:</strong>{" "}
+                {dashboard.doctor.payoutAccountId ? (
+                  <span className="text-green-700 font-mono bg-green-50 px-2 py-0.5 rounded">
+                    {dashboard.doctor.payoutAccountId}
+                  </span>
+                ) : (
+                  <span className="text-amber-600 italic">Not Linked</span>
+                )}
+              </p>
+
               {(dashboard.doctor.subscriptionStatus === "trial" ||
                 dashboard.doctor.subscriptionStatus === "active") && (
                 <p className="text-green-600 font-semibold mt-3">
@@ -194,7 +251,8 @@ const getRemainingDays = () => {
                 </p>
               )}
 
-              {dashboard.doctor.subscriptionStatus === "expired" && (
+              {(dashboard.doctor.subscriptionStatus === "expired" ||
+                dashboard.doctor.subscriptionStatus === "past_due") && (
                 <button
                   onClick={() => setOpenSubscription(true)}
                   className="mt-5 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl"
